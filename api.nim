@@ -1,7 +1,7 @@
 import httpclient
 import json
 
-var host = "https://dojomaze-api.maas.codes/evaluate/"
+var host = "https://dojomaze-api.maas.codes/"
 
 type
     KeyStatusResponse* = object
@@ -55,6 +55,8 @@ proc httpPostJson[T](url: string, request: T): JsonNode =
     client.headers = newHttpHeaders({ "Content-Type": "application/json" })
     let body = %*request
     let response = client.request(host & url, httpMethod = HttpPost, body = $body)
+    echo response.code()
+
     let responseStr = response.body()
     return parseJson(responseStr)
 
@@ -74,6 +76,7 @@ proc httpPostPlayerJoin*(request: PlayerJoinRequest): PlayerJoinResponse =
     return to(httpPostJson("evaluate/join", request), PlayerJoinResponse)
 
 proc httpPostEvaluate*(request: EvaluateRequest): EvaluateResponse =
+    echo request.entries.len
     return to(httpPostJson("evaluate/run", request), EvaluateResponse)
 
 proc httpPostDecorate*(request: DecorateRequest): void =
