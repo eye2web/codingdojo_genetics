@@ -55,8 +55,6 @@ proc httpPostJson[T](url: string, request: T): JsonNode =
     client.headers = newHttpHeaders({ "Content-Type": "application/json" })
     let body = %*request
     let response = client.request(host & url, httpMethod = HttpPost, body = $body)
-    echo response.code()
-
     let responseStr = response.body()
     return parseJson(responseStr)
 

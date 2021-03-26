@@ -1,14 +1,13 @@
 import api
 import algorithm, random, math, sequtils
 import strutils
-import nimga
 
 randomize()
 
 var decorateRequest: DecorateRequest
 var teamInfo: TeamInfo
 teamInfo.teamName = "Gentastic"
-teamInfo.teamMembers = "Dennis, Remco"
+teamInfo.teamMembers = "Dennis, Remco, Lili"
 
 decorateRequest.clientId = "SuperMegaSecretToTheMax"
 decorateRequest.teamInfo = teamInfo
@@ -28,159 +27,54 @@ var keyStatus = httpGetKeyStatus()
 echo "Current Key: ", keyStatus.currentKeyNumber
 echo "Expire on: ", keyStatus.expiresUtc
 
-var
-  pop, popNext: Population
-  crossovered: CrossoveredChrom
-  a, b: int
+
+proc createEntry(number: int): Entry = 
+ result.line = "a"
+ result.number = number
 
 
-proc mapToEntry*(chrom: seq[int]): Entry =
+proc fillEntries(first:int, last:int): seq[Entry] =
+    var lFirst, lLast, lTemp: int
+    lLast = last
+    lFirst = first
+    if(lFirst > lLast):
+        lTemp = lLast
+        lLast = lFirst
+        lFirst = lTemp
 
-    var line: string
+    result.add(createEntry(lFirst))
+    result.add(createEntry((lLast - lFirst) div 2 + lFirst))
+    result.add(createEntry((lLast - lFirst) div 4 + lFirst))
+    result.add(createEntry(((lLast - lFirst) div 4 * 3).int + lFirst))
+    result.add(createEntry(lLast))
 
-    for i in 0..<chrom.len-2:
-       line.add(allowedChars[chrom[i]])
+    sort(
+        result,
+        proc (x, y: Entry): int = cmp(x.number, y.number),
+        Ascending
+    )
 
-    result.line = line
-    result.number = chrom[chrom.len-1]
-
-proc mutateMe*(pop: Population, mutationNum :int = 1): Population =
-  ##
-  ## Mutate chrome twice of pop
-  ##
-  deepCopy(result, pop)
-
-  var targetChild, targetChrom: int
-
-  for i in 0..mutationNum:
-      targetChild = rand(pop.len - 1)
-      targetChrom = rand(pop[targetChild].chrom.len - 1)
-
-      var value: int
-      if targetChrom == pop[targetChild].chrom.len - 1:
-        value = rand(high(int32))
-      else:
-        value = rand(allowedChars.len-1)
-
-      result[targetChild].chrom[targetChrom] = value
-
-proc createPopulation*(popRange:int): Population =
-  ##
-  ## Create population
-  ## Chrom is binary.
-  ##
-  ## Example: individual.chrom = @[1, 1, 0, 1, 0]
-  ##
-  result = @[]
-
-  var newIndividual: Individual
-
-  for i in 0..<popRange:
-    newIndividual = Individual(chrom: @[], score: 0.0)
-    for j in 0..<rand(keyStatus.currentKeyNumber):
-      newIndividual.chrom.add(rand(allowedChars.len-1))
-
-    newIndividual.chrom.add(rand(high(int32)))
-    result.add(newIndividual)
-
-proc runFloyd*(N, popLength, generateTime, saveElite: int): seq[int] =
-  ###
-  ### Floyd
-  ###
-
-  # Initial population
-  pop = createPopulation(popLength)
-
-  # Initial evaluation
-  var entries: seq[Entry]
-  # Map chrom to entry
-  for j in 0..<popLength:
-    entries.add(mapToEntry(pop[j].chrom))
-
-  var evaluateRequest: EvaluateRequest
-  evaluateRequest.playerId = playerJoinResponse.playerId
-  evaluateRequest.entries = entries
-
-  var response = httpPostEvaluate(evaluateRequest)
-
-  # Evaluation
-  for j in 0..<popLength:
-    pop[j].score = response.entries[j].score
-
-  # Sorting
-  pop = sortIndividualsByScore(pop, order=Ascending)
-
-  for i in 0..<generateTime:
-    # Ready new generation
-    popNext = selectElite(pop, saveElite)
-
-    # Generation
-    for j in countup(2, (popLength - saveElite) - 1, 2):
-      # Selection
-      a = rouletteSelection(map(pop, proc(p: Individual): float = p.score))
-      b = rouletteSelection(map(pop, proc(p: Individual): float = p.score))
-
-      # Crossover
-      # crossovered = kPointCrossover(pop[a].chrom, pop[b].chrom, 1)
-
-      # Add to new generation
-      popNext.add(Individual(chrom: pop[a].chrom, score: 0.0))
-      popNext.add(Individual(chrom: pop[b].chrom, score: 0.0))
-
-    # Mutation
-    if (willMutate(0.5)):
-      popNext[saveElite..<popNext.len] = mutateMe(popNext[saveElite..<popNext.len], 1000)
-
-    # Push new population when pops less than popLength
-    if (popNext.len < popLength):
-      popNext.add(createPopulation(popLength - popNext.len))
-
-    var entries: seq[Entry]
-    # Map chrom to entry
-    for j in 0..<popLength:
-        entries.add(mapToEntry(popNext[j].chrom))
-
+proc calculateNumbers(first:int, last:int):int =
     var evaluateRequest: EvaluateRequest
     evaluateRequest.playerId = playerJoinResponse.playerId
-    evaluateRequest.entries = entries
-
+    evaluateRequest.entries = fillEntries(first, last)
     var response = httpPostEvaluate(evaluateRequest)
 
-    # Evaluation
-    for j in 0..<popLength:
-      popNext[j].score = response.entries[j].score
+    sort(
+            response.entries,
+            proc (x, y: Entry): int = cmp(x.score, y.score),
+            Descending
+        )
 
-    # Sorting
-    popNext = sortIndividualsByScore(popNext, order=Ascending)
+    echo "-"
+    for i in 0..<response.entries.len:
+        echo response.entries[i]
 
-    # Copy `NextIndividualrationPopulation` to pop
-    pop = popNext
-
-    echo "Score at ", i + 1, "\t: ", pop[0].score
-
-  # Set result
-  result = pop[0].chrom
-
-if isMainModule:
-  echo runFloyd(50, 1000, 1000, 1)
+    echo abs(response.entries[0].number - response.entries[1].number)
+    if (abs(response.entries[0].number - response.entries[1].number) < 3):
+        return response.entries[0].number
+    else:
+        calculateNumbers(response.entries[0].number, response.entries[1].number)
 
 
-#let num = rand(100)
-#echo "A random number between 0 and 100: ", num
-
-#var arrayExample = [1, 2, 3, 4, 5]
-#var select = sample(arrayExample)
-#echo "From an array I randomly picked: ", select
-
-#var keyStatus = httpGetKeyStatus()
-#echo "Current Key: ", keyStatus.currentKeyNumber
-#echo "Expire on: ", keyStatus.expiresUtc
-
-#var allowedChars = httpGetLegalCharacters();
-#echo "legal chars: ", allowedChars
-#echo "random one: ", sample(allowedChars)
-
-#var chosenChar = 'F'
-#var index = find(allowedChars, chosenChar);
-#echo "I found char ", chosenChar, " at index ", index
-
+echo calculateNumbers(0, high(int32))
