@@ -74,7 +74,6 @@ proc httpPostPlayerJoin*(request: PlayerJoinRequest): PlayerJoinResponse =
     return to(httpPostJson("evaluate/join", request), PlayerJoinResponse)
 
 proc httpPostEvaluate*(request: EvaluateRequest): EvaluateResponse =
-    echo request.entries.len
     return to(httpPostJson("evaluate/run", request), EvaluateResponse)
 
 proc httpPostDecorate*(request: DecorateRequest): void =

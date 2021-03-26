@@ -53,8 +53,9 @@ proc fillEntries(first:int, last:int): seq[Entry] =
         proc (x, y: Entry): int = cmp(x.number, y.number),
         Ascending
     )
-
-proc calculateNumbers(first:int, last:int):int =
+var iterationNeeded: int
+iterationNeeded = 0
+proc calculateNumber(first:int, last:int):int =
     var evaluateRequest: EvaluateRequest
     evaluateRequest.playerId = playerJoinResponse.playerId
     evaluateRequest.entries = fillEntries(first, last)
@@ -66,15 +67,12 @@ proc calculateNumbers(first:int, last:int):int =
             Descending
         )
 
-    echo "-"
-    for i in 0..<response.entries.len:
-        echo response.entries[i]
-
-    echo abs(response.entries[0].number - response.entries[1].number)
+    echo response.entries[0]
+    inc(iterationNeeded)
     if (abs(response.entries[0].number - response.entries[1].number) < 3):
         return response.entries[0].number
     else:
-        calculateNumbers(response.entries[0].number, response.entries[1].number)
+        calculateNumber(response.entries[0].number, response.entries[1].number)
 
-
-echo calculateNumbers(0, high(int32))
+echo "Final number ", calculateNumber(0, high(int32))
+echo "Iterations ", iterationNeeded
